@@ -897,7 +897,7 @@ function bindReorderBtns(){
     if(row.querySelector('.reorder-day-btn')) return;
     const btn=document.createElement('button');
     btn.type='button'; btn.className='manage-btn reorder-day-btn';
-    btn.textContent='↕️ 調整順序';
+    btn.textContent='↕️ 調整／刪除';
     btn.onclick=e=>{ e.preventDefault(); e.stopPropagation(); openReorderModal(row.closest('.day-body')); };
     row.appendChild(btn);
   });
@@ -912,7 +912,7 @@ function itemLabel(item){
 function openReorderModal(dayBody){
   const tl=dayBody && dayBody.querySelector('.timeline');
   if(!tl) return;
-  openModal('調整這一天的順序','<div class="reorder-list" id="reorderList"></div><p class="small" style="margin-top:10px;color:var(--muted)">用上下箭頭調整順序，關閉視窗就會直接套用。</p>');
+  openModal('調整順序／刪除項目','<div class="reorder-list" id="reorderList"></div><p class="small" style="margin-top:10px;color:var(--muted)">用上下箭頭調整順序，🗑 可刪除該項目，關閉視窗就會直接套用。</p>');
   renderReorderList(tl);
 }
 function renderReorderList(tl){
@@ -927,9 +927,15 @@ function renderReorderList(tl){
       <div class="reorder-btns">
         <button type="button" class="reorder-btn r-up" ${i===0?'disabled':''}>↑</button>
         <button type="button" class="reorder-btn r-down" ${i===items.length-1?'disabled':''}>↓</button>
+        <button type="button" class="reorder-btn r-del" style="color:var(--danger)">🗑</button>
       </div>`;
     row.querySelector('.r-up').onclick=()=>{ if(item.previousElementSibling) tl.insertBefore(item,item.previousElementSibling); renderReorderList(tl); debounceAutoSave(); };
     row.querySelector('.r-down').onclick=()=>{ if(item.nextElementSibling) tl.insertBefore(item.nextElementSibling,item); renderReorderList(tl); debounceAutoSave(); };
+    row.querySelector('.r-del').onclick=()=>{
+      if(confirm(`確定刪除「${itemLabel(item)}」這個項目？`)){
+        item.remove(); renderReorderList(tl); debounceAutoSave();
+      }
+    };
     list.appendChild(row);
   });
 }
