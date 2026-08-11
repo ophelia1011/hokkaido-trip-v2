@@ -81,6 +81,12 @@ border-radius:999px;background:#fff;margin-top:6px;cursor:pointer}
 .item-nav-edit{display:none;font-size:11px;padding:4px 8px;margin-left:4px}
 body.editing .item-nav-edit{display:inline-flex}
 
+/* ── DELETE itinerary item ── */
+.del-item-btn{display:none;border:1px solid #f5d0cc;background:#fff4f1;color:var(--danger);
+border-radius:10px;padding:6px 10px;margin-top:8px;font-size:11px;font-weight:850;cursor:pointer}
+body.editing .del-item-btn{display:inline-flex}
+.del-item-btn:hover{background:#ffe8e4}
+
 /* ── CHECKLIST ── */
 .checklist-group{margin-bottom:16px}
 .checklist-group-title{font-weight:900;font-size:14px;margin:0 0 8px;color:var(--ink)}
@@ -897,9 +903,32 @@ function bindReorderBtns(){
     if(row.querySelector('.reorder-day-btn')) return;
     const btn=document.createElement('button');
     btn.type='button'; btn.className='manage-btn reorder-day-btn';
-    btn.textContent='↕️ 調整／刪除';
+    btn.textContent='↕️ 調整順序';
     btn.onclick=e=>{ e.preventDefault(); e.stopPropagation(); openReorderModal(row.closest('.day-body')); };
     row.appendChild(btn);
+  });
+}
+
+function bindDeleteItemBtns(){
+  root.querySelectorAll('.timeline .item').forEach(item=>{
+    let btn=item.querySelector(':scope > .del-item-btn');
+    if(!btn){
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.className='del-item-btn';
+      btn.textContent='🗑 刪除此行程';
+      item.appendChild(btn);
+    }
+    btn.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const name=itemLabel(item);
+      if(confirm(`確定要刪除「${name}」嗎？`)){
+        item.remove();
+        debounceAutoSave();
+        showToast('🗑️ 行程已刪除，記得 💾 儲存');
+      }
+    };
   });
 }
 function itemLabel(item){
@@ -912,7 +941,7 @@ function itemLabel(item){
 function openReorderModal(dayBody){
   const tl=dayBody && dayBody.querySelector('.timeline');
   if(!tl) return;
-  openModal('調整順序／刪除項目','<div class="reorder-list" id="reorderList"></div><p class="small" style="margin-top:10px;color:var(--muted)">用上下箭頭調整順序，🗑 可刪除該項目，關閉視窗就會直接套用。</p>');
+  openModal('調整這一天的順序','<div class="reorder-list" id="reorderList"></div><p class="small" style="margin-top:10px;color:var(--muted)">用上下箭頭調整順序，關閉視窗就會直接套用。</p>');
   renderReorderList(tl);
 }
 function renderReorderList(tl){
@@ -927,15 +956,9 @@ function renderReorderList(tl){
       <div class="reorder-btns">
         <button type="button" class="reorder-btn r-up" ${i===0?'disabled':''}>↑</button>
         <button type="button" class="reorder-btn r-down" ${i===items.length-1?'disabled':''}>↓</button>
-        <button type="button" class="reorder-btn r-del" style="color:var(--danger)">🗑</button>
       </div>`;
     row.querySelector('.r-up').onclick=()=>{ if(item.previousElementSibling) tl.insertBefore(item,item.previousElementSibling); renderReorderList(tl); debounceAutoSave(); };
     row.querySelector('.r-down').onclick=()=>{ if(item.nextElementSibling) tl.insertBefore(item.nextElementSibling,item); renderReorderList(tl); debounceAutoSave(); };
-    row.querySelector('.r-del').onclick=()=>{
-      if(confirm(`確定刪除「${itemLabel(item)}」這個項目？`)){
-        item.remove(); renderReorderList(tl); debounceAutoSave();
-      }
-    };
     list.appendChild(row);
   });
 }
@@ -988,6 +1011,7 @@ function addCustomField(dayBody){
     item.querySelector('.del-custom-btn').onclick=()=>{
       if(confirm('刪除此欄位？')) item.remove()
     };
+    bindDeleteItemBtns();
     if(document.body.classList.contains('editing')){
       item.querySelectorAll('[data-editable]').forEach(el=>el.contentEditable='true')
     }
@@ -1128,6 +1152,7 @@ function bindAll(){
   bindChecklist();
   bindAddFieldBtns();
   bindReorderBtns();
+  bindDeleteItemBtns();
   decorateLinks();
   // re-attach photo overlays
   root.querySelectorAll('.spot-photo-wrap').forEach(wrap=>{
