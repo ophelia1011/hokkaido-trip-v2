@@ -81,12 +81,6 @@ border-radius:999px;background:#fff;margin-top:6px;cursor:pointer}
 .item-nav-edit{display:none;font-size:11px;padding:4px 8px;margin-left:4px}
 body.editing .item-nav-edit{display:inline-flex}
 
-/* ── DELETE itinerary item ── */
-.del-item-btn{display:none;border:1px solid #f5d0cc;background:#fff4f1;color:var(--danger);
-border-radius:10px;padding:6px 10px;margin-top:8px;font-size:11px;font-weight:850;cursor:pointer}
-body.editing .del-item-btn{display:inline-flex}
-.del-item-btn:hover{background:#ffe8e4}
-
 /* ── CHECKLIST ── */
 .checklist-group{margin-bottom:16px}
 .checklist-group-title{font-weight:900;font-size:14px;margin:0 0 8px;color:var(--ink)}
@@ -108,6 +102,9 @@ body.editing .check-del{display:block}
 .reorder-row .reorder-btns{display:flex;gap:6px;flex-shrink:0}
 .reorder-btn{border:1px solid var(--line);background:var(--bg);border-radius:10px;width:34px;height:34px;font-size:15px;font-weight:900;cursor:pointer;color:var(--accent)}
 .reorder-btn:disabled{opacity:.3;cursor:default}
+.item-delete-btn{display:none;margin-top:8px}
+body.editing .item-delete-btn{display:inline-flex}
+
 .manage-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .manage-btn.danger{color:var(--danger);background:#fff4f1;border-color:#f5d0cc}
 
@@ -900,37 +897,48 @@ function bindAddFieldBtns(){
 /* ────────── Reorder items within a day (clean modal, not inline clutter) ────────── */
 function bindReorderBtns(){
   root.querySelectorAll('.manage-row').forEach(row=>{
-    if(row.querySelector('.reorder-day-btn')) return;
-    const btn=document.createElement('button');
-    btn.type='button'; btn.className='manage-btn reorder-day-btn';
-    btn.textContent='↕️ 調整順序';
-    btn.onclick=e=>{ e.preventDefault(); e.stopPropagation(); openReorderModal(row.closest('.day-body')); };
-    row.appendChild(btn);
-  });
-}
-
-function bindDeleteItemBtns(){
-  root.querySelectorAll('.timeline .item').forEach(item=>{
-    let btn=item.querySelector(':scope > .del-item-btn');
+    let btn=row.querySelector('.reorder-day-btn');
     if(!btn){
       btn=document.createElement('button');
       btn.type='button';
-      btn.className='del-item-btn';
+      btn.className='manage-btn reorder-day-btn';
+      btn.textContent='↕️ 調整順序';
+      row.appendChild(btn);
+    }
+    btn.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const dayBody=row.closest('.day-body');
+      if(dayBody) openReorderModal(dayBody);
+    };
+  });
+  bindItineraryDeleteButtons();
+}
+
+function bindItineraryDeleteButtons(){
+  root.querySelectorAll('.timeline .item').forEach(item=>{
+    let btn=item.querySelector('.item-delete-btn');
+    if(!btn){
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.className='manage-btn danger item-delete-btn';
       btn.textContent='🗑 刪除此行程';
       item.appendChild(btn);
     }
     btn.onclick=e=>{
       e.preventDefault();
       e.stopPropagation();
-      const name=itemLabel(item);
+      const name=item.querySelector('b')?.textContent.trim() || '這個行程';
       if(confirm(`確定要刪除「${name}」嗎？`)){
         item.remove();
         debounceAutoSave();
-        showToast('🗑️ 行程已刪除，記得 💾 儲存');
+        bindReorderBtns();
+        showToast('已刪除，記得按 💾 儲存');
       }
     };
   });
 }
+
 function itemLabel(item){
   const time=item.querySelector('.time');
   const b=item.querySelector('b');
@@ -957,8 +965,24 @@ function renderReorderList(tl){
         <button type="button" class="reorder-btn r-up" ${i===0?'disabled':''}>↑</button>
         <button type="button" class="reorder-btn r-down" ${i===items.length-1?'disabled':''}>↓</button>
       </div>`;
-    row.querySelector('.r-up').onclick=()=>{ if(item.previousElementSibling) tl.insertBefore(item,item.previousElementSibling); renderReorderList(tl); debounceAutoSave(); };
-    row.querySelector('.r-down').onclick=()=>{ if(item.nextElementSibling) tl.insertBefore(item.nextElementSibling,item); renderReorderList(tl); debounceAutoSave(); };
+    row.querySelector('.r-up').onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const prev=item.previousElementSibling;
+      if(prev && prev.classList.contains('item')) tl.insertBefore(item,prev);
+      renderReorderList(tl);
+      bindItineraryDeleteButtons();
+      debounceAutoSave();
+    };
+    row.querySelector('.r-down').onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const next=item.nextElementSibling;
+      if(next && next.classList.contains('item')) tl.insertBefore(next,item);
+      renderReorderList(tl);
+      bindItineraryDeleteButtons();
+      debounceAutoSave();
+    };
     list.appendChild(row);
   });
 }
@@ -992,7 +1016,9 @@ function addCustomField(dayBody){
     if(photoFile) photoSrc=await compressImage(photoFile);
 
     const item=document.createElement('div');
-    item.className='item'; item.dataset.spot='1'; item.dataset.custom='1';
+    item.className='item';
+    item.dataset.spot='1';
+    item.dataset.custom='1';
     item.innerHTML=`
       ${time?`<span class="time" data-editable>${esc(time)}</span>`:''}
       <b data-editable>${esc(type)} | ${esc(name)}</b>
@@ -1001,22 +1027,42 @@ function addCustomField(dayBody){
         ${photoSrc?`<img src="${photoSrc}">`:'<div class="spot-photo-placeholder"><span>📷</span>點此加入景點照片</div>'}
         <button class="photo-overlay-btn" type="button">更換照片</button>
       </div>
-      ${url?`<div class="item-nav-row"><a class="item-nav" href="${esc(url)}" target="_blank">📍 導航</a><button class="item-nav item-nav-edit manage-btn" onclick="editNavBtn(this.previousElementSibling)">🔗 改連結</button></div>`:''}
-      <button class="manage-btn danger del-custom-btn" style="margin-top:8px;font-size:11px">🗑 刪除此欄位</button>`;
+      <div class="item-nav-row">
+        <a class="item-nav" href="${url?esc(url):'#'}" target="_blank">${url?'📍 導航':'📍 設定導航'}</a>
+        <button type="button" class="item-nav item-nav-edit manage-btn">🔗 改導航</button>
+      </div>
+      <button type="button" class="manage-btn danger del-custom-btn" style="margin-top:8px;font-size:11px">🗑 刪除此欄位</button>`;
 
     const timeline=dayBody.querySelector('.timeline');
     if(timeline) timeline.appendChild(item);
     else dayBody.appendChild(item);
 
-    item.querySelector('.del-custom-btn').onclick=()=>{
-      if(confirm('刪除此欄位？')) item.remove()
+    const nav=item.querySelector('.item-nav');
+    const navEdit=item.querySelector('.item-nav-edit');
+    navEdit.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      editNavBtn(nav);
     };
-    bindDeleteItemBtns();
+
+    item.querySelector('.del-custom-btn').onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(confirm('刪除此欄位？')){
+        item.remove();
+        debounceAutoSave();
+        bindReorderBtns();
+        showToast('已刪除，記得按 💾 儲存');
+      }
+    };
+
     if(document.body.classList.contains('editing')){
-      item.querySelectorAll('[data-editable]').forEach(el=>el.contentEditable='true')
+      item.querySelectorAll('[data-editable]').forEach(el=>el.contentEditable='true');
     }
     bindReorderBtns();
-    closeModal(); setEditing(true); showToast('已新增，記得按 💾 儲存')
+    closeModal();
+    setEditing(true);
+    showToast('已新增，可改導航／照片／文字；記得按 💾 儲存');
   }
 }
 
@@ -1152,7 +1198,6 @@ function bindAll(){
   bindChecklist();
   bindAddFieldBtns();
   bindReorderBtns();
-  bindDeleteItemBtns();
   decorateLinks();
   // re-attach photo overlays
   root.querySelectorAll('.spot-photo-wrap').forEach(wrap=>{
@@ -1164,8 +1209,17 @@ function bindAll(){
   });
   // del custom buttons
   root.querySelectorAll('.del-custom-btn').forEach(btn=>{
-    btn.onclick=()=>{ if(confirm('刪除此欄位？')) btn.closest('.item').remove() }
+    btn.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(confirm('刪除此欄位？')){
+        btn.closest('.item').remove();
+        debounceAutoSave();
+        bindReorderBtns();
+      }
+    }
   });
+  bindItineraryDeleteButtons();
 }
 
 /* ────────── Init ────────── */
