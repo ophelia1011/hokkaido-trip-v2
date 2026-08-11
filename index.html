@@ -608,7 +608,7 @@ padding:4px 10px;border-radius:999px;margin:0 auto 10px;text-align:center}
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
 /* ────────── Constants ────────── */
-const KEY = 'ophelia-hokkaido-v1';
+const KEY = 'ophelia-hokkaido-v2';
 
 /* ────────── Firebase (shared cloud sync) ────────── */
 const firebaseConfig = {
@@ -623,7 +623,7 @@ let db=null, TRIP_DOC=null;
 try{
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  TRIP_DOC = db.collection('trips').doc('hokkaido-trip-2026');
+  TRIP_DOC = db.collection('trips').doc('hokkaido-trip-2026-v2');
 }catch(e){ console.warn('Firebase init failed, falling back to local-only mode', e) }
 
 function pushToCloud(payload){
