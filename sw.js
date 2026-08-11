@@ -1,6 +1,6 @@
 // Ophelia Hokkaido 2026 - offline cache
 // Cache-first for the app shell + known photos, so the itinerary still opens with no signal.
-const CACHE_NAME = 'ophelia-hokkaido-2026-v1';
+const CACHE_NAME = 'ophelia-hokkaido-2026-v2';
 const PRECACHE_URLS = [
   './',
   './index.html',
