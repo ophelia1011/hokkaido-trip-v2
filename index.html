@@ -917,85 +917,73 @@ function bindAddFieldBtns(){
 /* ────────── Reorder items within a day (clean modal, not inline clutter) ────────── */
 function bindReorderBtns(){
   root.querySelectorAll('.manage-row').forEach(row=>{
-    if(row.querySelector('.reorder-day-btn')) return;
-    const btn=document.createElement('button');
-    btn.type='button'; btn.className='manage-btn reorder-day-btn';
-    btn.textContent='↕️ 調整順序';
-    btn.onclick=e=>{ e.preventDefault(); e.stopPropagation(); openReorderModal(row.closest('.day-body')); };
-    row.appendChild(btn);
-  });
-}
-function bindItemNavigation(){
-  root.querySelectorAll('.timeline .item').forEach(item=>{
-    let row=item.querySelector('.item-nav-row');
-    let nav=item.querySelector('.item-nav');
-
-    if(!row){
-      row=document.createElement('div');
-      row.className='item-nav-row';
-      item.appendChild(row);
+    let btn=row.querySelector('.reorder-day-btn');
+    if(!btn){
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.className='manage-btn reorder-day-btn';
+      btn.textContent='↕️ 調整順序';
+      row.appendChild(btn);
     }
 
-    if(!nav){
-      nav=document.createElement('a');
-      nav.className='item-nav';
-      nav.href='#';
-      nav.target='_blank';
-      nav.textContent='📍 設定導航';
-      nav.dataset.hasNav='0';
-      nav.onclick=e=>{
-        e.preventDefault();
-        editNavBtn(nav);
-      };
-      row.appendChild(nav);
-    }else{
-      nav.onclick=e=>{
-        if(document.body.classList.contains('editing')){
-          e.preventDefault();
-          e.stopPropagation();
-          editNavBtn(nav);
-        }
-      };
-      nav.dataset.hasNav=(nav.getAttribute('href') && nav.getAttribute('href')!=='#')?'1':'0';
-    }
-
-    let edit=row.querySelector('.item-nav-edit');
-    if(!edit){
-      edit=document.createElement('button');
-      edit.type='button';
-      edit.className='item-nav item-nav-edit manage-btn';
-      edit.textContent='🔗 改導航';
-      row.appendChild(edit);
-    }
-    edit.onclick=e=>{
+    btn.onclick=e=>{
       e.preventDefault();
       e.stopPropagation();
-      editNavBtn(nav);
-    };
+      const dayBody=row.closest('.day-body');
+      const timeline=dayBody && dayBody.querySelector('.timeline');
+      if(!timeline) return;
 
-    let del=row.querySelector('.item-nav-delete');
-    if(!del){
-      del=document.createElement('button');
-      del.type='button';
-      del.className='item-nav item-nav-delete manage-btn';
-      del.textContent='🗑 刪除導航';
-      row.appendChild(del);
-    }
-    del.onclick=e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      if(!nav.getAttribute('href') || nav.getAttribute('href')==='#'){
-        showToast('這個行程目前沒有導航');
-        return;
-      }
-      if(confirm('確定要刪除這個行程的導航嗎？')){
-        nav.removeAttribute('href');
-        nav.textContent='📍 設定導航';
-        nav.dataset.hasNav='0';
+      const active=timeline.classList.toggle('reordering');
+      if(active){
+        timeline.querySelectorAll('.item').forEach(item=>{
+          let box=item.querySelector('.inline-reorder-box');
+          if(box) return;
+          box=document.createElement('div');
+          box.className='inline-reorder-box';
+          box.innerHTML='<button type="button" class="inline-up">↑ 上移</button><button type="button" class="inline-down">↓ 下移</button>';
+          item.insertBefore(box,item.firstChild);
+
+          box.querySelector('.inline-up').onclick=ev=>{
+            ev.preventDefault(); ev.stopPropagation();
+            const prev=item.previousElementSibling;
+            if(prev && prev.classList.contains('item')){
+              timeline.insertBefore(item,prev);
+              refreshInlineReorder(timeline);
+              debounceAutoSave();
+            }
+          };
+          box.querySelector('.inline-down').onclick=ev=>{
+            ev.preventDefault(); ev.stopPropagation();
+            const next=item.nextElementSibling;
+            if(next && next.classList.contains('item')){
+              timeline.insertBefore(next,item);
+              refreshInlineReorder(timeline);
+              debounceAutoSave();
+            }
+          };
+        });
+        refreshInlineReorder(timeline);
+        btn.textContent='✅ 完成調整';
+      }else{
+        timeline.querySelectorAll('.inline-reorder-box').forEach(x=>x.remove());
+        btn.textContent='↕️ 調整順序';
         debounceAutoSave();
-        showToast('導航已刪除，記得按 💾 儲存');
       }
     };
+  });
+  bindItineraryDeleteButtons();
+}
+
+function refreshInlineReorder(timeline){
+  timeline.querySelectorAll('.item').forEach(item=>{
+    const box=item.querySelector('.inline-reorder-box');
+    if(!box) return;
+    const up=box.querySelector('.inline-up');
+    const down=box.querySelector('.inline-down');
+    const prev=item.previousElementSibling;
+    const next=item.nextElementSibling;
+    up.disabled=!(prev && prev.classList.contains('item'));
+    down.disabled=!(next && next.classList.contains('item'));
   });
 }
 
